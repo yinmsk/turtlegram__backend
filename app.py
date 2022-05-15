@@ -1,8 +1,10 @@
+import json
 from flask import Flask, jsonify
 from requests import request
-
+from flask_cors import CORS
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"*": {"origins": "*"}})
 
 
 @app.route("/")
@@ -12,8 +14,9 @@ def hello_world():
 
 @app.route("/signup", methods=["POST"])
 def sign_up():
-    print(request)
-    print(request.form)
+    data = json.loads(request.data)
+    print(data.get('email'))
+    print(data["password"])
 
     return jsonify({'message': 'success'})
 
