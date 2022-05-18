@@ -1,13 +1,17 @@
+import datetime
 import json
 import hashlib
+from bson import ObjectId
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import jwt
 from pymongo import MongoClient
 
 
 client = MongoClient('localhost', 27017)
 db = client.dbturtle
 
+SECRET_KEY = 'turtle'
 
 app = Flask(__name__)
 # 같은 호스트 이름이 아니더라도 정상적으로 호출 가능하도록 cors를 사용하고 *을 사용해 모든곳에서이 호출을 허용한다
@@ -20,9 +24,10 @@ def hello_world():
     return jsonify({'message': 'success'})
 
 
-@ app.route("/signup", methods=["POST"])
+# @ app.route("/signup", methods=["POST"])
 def sign_up():
     data = json.loads(request.data)
+    print(data)
 
     # 코드 형식?
     email = data["email"]
@@ -37,28 +42,57 @@ def sign_up():
     return jsonify({'message': 'success'})
 
 
+@app.route('/login', methods=['POST'])
+def login():
+    print(request)
+    data = json.loads(request.data)
+    print(data)
+
+    email = data.get("email")
+    password = data.get("password")
+    pw_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    print(pw_hash)
+
+    result = db.users.find_one({
+        'email': email,
+        # password: password
+        'pw_hash': pw_hash
+    })
+    print(result)
+
+    if result is None:
+        return jsonify({"message": "아이디나 비밀번호가 옳지 않습니다"}), 401
+
+    payload = {
+        # "_id"는 몽고디비에서 만들어준 프라이머리키(이게 뭘까요?)
+        # 꼭 str화해서 저장해주어야 한다
+        'id': str(result["_id"]),
+        'exp': datetime.utcnow() + datetime.timedelta(seconds=60 * 60 * 24)
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+    print(token)
+
+    return jsonify({"msg": "success", "token": token})
+
+
+@app.route("/getuserinfo", methods={"GET"})
+def get_userinfo():
+    token = request.headers.get("Autforization")
+    # if not token:
+    #     return jsonify({"message": "no token"})
+    # print(token)
+    user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+    print(user)
+    result = db.user.find_one({
+        '_id': ObjectId(user["id"])
+    })
+
+    print(result)
+
+    return jsonify({"message": "success", "email": result["email"]})
+
+
 # 다른데서 부르면 실행하지 말라는 뜻이다
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000, debug=True)
-
-    # print(request)
-    # print(request.form.get('id'))
-    # print(data.get('email'))
-    # print(data.get["password"])
-
-# email_receive = request.form['email_give']
-
-
-# 질문
-# request.form의 의미 form 데이터를 주고 받을때 사용
-
-# request 프론트엔드에서 데이터를 가져온다
-
-# print(request.form)은 get 사용 가능
-
-# print(request.data)은 get 사용 불가
-# data = json.loads(request.data)
-# print(data) 라고 사용해야한다
-# print(data["password"])
-
-# return jsonify({'message': 'success'})
