@@ -24,7 +24,7 @@ def hello_world():
     return jsonify({'message': 'success'})
 
 
-# @ app.route("/signup", methods=["POST"])
+@ app.route("/signup", methods=["POST"])
 def sign_up():
     data = json.loads(request.data)
     print(data)
