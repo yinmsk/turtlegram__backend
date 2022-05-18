@@ -1,21 +1,20 @@
-import datetime
-import json
+from datetime import datetime, timedelta
 import hashlib
+import json
 from bson import ObjectId
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 import jwt
 from pymongo import MongoClient
-
-
-client = MongoClient('localhost', 27017)
-db = client.dbturtle
-
+# from bson.json_util import loads, dumps
 SECRET_KEY = 'turtle'
+
 
 app = Flask(__name__)
 # 같은 호스트 이름이 아니더라도 정상적으로 호출 가능하도록 cors를 사용하고 *을 사용해 모든곳에서이 호출을 허용한다
 cors = CORS(app, resources={r"*": {"origins": "*"}})
+client = MongoClient('localhost', 27017)
+db = client.dbturtle
 
 
 @ app.route("/")
@@ -35,8 +34,9 @@ def sign_up():
     pw_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
     doc = {
-        'email': email,
-        'password': pw_hash,
+        # 'email': email,
+        'email': data.get('email'),
+        'password': pw_hash
     }
     db.users.insert_one(doc)
     return jsonify({'message': 'success'})
@@ -56,7 +56,7 @@ def login():
     result = db.users.find_one({
         'email': email,
         # password: password
-        'pw_hash': pw_hash
+        'password': pw_hash
     })
     print(result)
 
@@ -67,21 +67,23 @@ def login():
         # "_id"는 몽고디비에서 만들어준 프라이머리키(이게 뭘까요?)
         # 꼭 str화해서 저장해주어야 한다
         'id': str(result["_id"]),
-        'exp': datetime.utcnow() + datetime.timedelta(seconds=60 * 60 * 24)
+        'exp': datetime.utcnow() + timedelta(seconds=60 * 60 * 24)
     }
 
     token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
     print(token)
 
-    return jsonify({"msg": "success", "token": token})
+    return jsonify({"message": "success", "token": token})
 
 
 @app.route("/getuserinfo", methods={"GET"})
-def get_userinfo():
+def get_user_info():
     token = request.headers.get("Autforization")
-    # if not token:
-    #     return jsonify({"message": "no token"})
-    # print(token)
+
+    if not token:
+        return jsonify({"message": "no token"})
+    print(token)
+
     user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
     print(user)
     result = db.user.find_one({
