@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
+from functools import wraps
 import hashlib
 import json
 from bson import ObjectId
-from flask import Flask, jsonify, request, Response
+from flask import Flask, abort, jsonify, request, Response
 from flask_cors import CORS
 import jwt
 from pymongo import MongoClient
@@ -17,9 +18,26 @@ client = MongoClient('localhost', 27017)
 db = client.dbturtle
 
 
+def authorize(f):
+    @wraps(f)
+    def decorated_function():
+        if not 'Authorization' in request.headers:
+            abort(401)
+        token = request.headers['Authorization']
+
+        try:
+            user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        except:
+            abort(401)
+        return f(user)
+
+    return decorated_function
+
+
 @ app.route("/")
-def hello_world():
-    # 어디에 나오는걸까?
+@authorize
+def hello_world(user):
+    print(user)
     return jsonify({'message': 'success'})
 
 
@@ -77,22 +95,53 @@ def login():
 
 
 @app.route("/getuserinfo", methods={"GET"})
-def get_user_info():
-    token = request.headers.get("Autforization")
+@authorize
+def get_user_info(user):
+    # @authorize를 사용해 def get_user_info에 user을 사용해준것 만으로도 코드 실행 가능
+    # token = request.headers.get("Autforization")
 
-    if not token:
-        return jsonify({"message": "no token"})
-    print(token)
+    # if not token:
+    #     return jsonify({"message": "no token"})
+    # print(token)
 
-    user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-    print(user)
-    result = db.user.find_one({
+    # user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+    result = db.users.find_one({
         '_id': ObjectId(user["id"])
     })
 
-    print(result)
-
     return jsonify({"message": "success", "email": result["email"]})
+
+
+@app.route("/article", methods={"POST"})
+@authorize
+def post_article(user):
+    data = json.loads(request.data)
+    print(data)
+
+    db_user = db.users.find_one({'_id': ObjectId(user.get('id'))})
+
+    now = datetime.now().strftime("%H:%M:%S")
+    doc = {
+        'title': data.get('title', None),
+        'content': data.get('content', None),
+        'user': user['id'],
+        'user_email': db_user['email'],
+        'time': now,
+    }
+    print(doc)
+
+    db.article.insert_one(doc)
+
+    return jsonify({"message": "success"})
+
+
+@app.route("/article", methods={"GET"})
+def get_article():
+    articles = list(db.article.find())
+    for article in articles:
+        article["_id"] = str(article["_id"])
+
+    return jsonify({"message": "success", "article": article})
 
 
 # 다른데서 부르면 실행하지 말라는 뜻이다
