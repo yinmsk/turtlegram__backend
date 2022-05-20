@@ -44,9 +44,8 @@ def hello_world(user):
 @ app.route("/signup", methods=["POST"])
 def sign_up():
     data = json.loads(request.data)
-    print(data)
+    # print(data)
 
-    # 코드 형식?
     email = data["email"]
     password = data["password"]
     pw_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -62,14 +61,14 @@ def sign_up():
 
 @app.route('/login', methods=['POST'])
 def login():
-    print(request)
+    # print(request)
     data = json.loads(request.data)
-    print(data)
+    # print(data)
 
     email = data.get("email")
     password = data.get("password")
     pw_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
-    print(pw_hash)
+    # print(pw_hash)
 
     result = db.users.find_one({
         'email': email,
@@ -138,10 +137,11 @@ def post_article(user):
 @app.route("/article", methods={"GET"})
 def get_article():
     articles = list(db.article.find())
+    print(articles)
     for article in articles:
         article["_id"] = str(article["_id"])
 
-    return jsonify({"message": "success", "article": article})
+    return jsonify({"message": "success", "article": articles})
 
 
 # 다른데서 부르면 실행하지 말라는 뜻이다
