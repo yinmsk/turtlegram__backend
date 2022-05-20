@@ -144,6 +144,16 @@ def get_article():
     return jsonify({"message": "success", "article": articles})
 
 
+@app.route("/article/<article_id>", methods=["GET"])
+def get_article_detail(article_id):
+    print(article_id)
+    article = db.article.find_one({"_id": ObjectId(article_id)})
+    print(article)
+    article["_id"] = str(article["_id"])
+
+    return jsonify({"message": "success", "article": article})
+
+
 # 다른데서 부르면 실행하지 말라는 뜻이다
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000, debug=True)
